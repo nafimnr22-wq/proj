@@ -31,6 +31,7 @@ export async function renderWaterPumpDashboard(project) {
       <div class="actions" style="margin-bottom: 1.5rem;">
         <button class="btn btn-secondary" onclick="window.router.navigate('/projects')">← Back to Projects</button>
         <button class="btn btn-primary" onclick="window.router.navigate('/project/telemetry?id=${project.project_id}')">View All Telemetry</button>
+        ${project.ml_enabled ? `<button class="btn btn-success" onclick="window.router.navigate('/project/ml-script?id=${project.project_id}')">ML Script Editor</button>` : ''}
       </div>
 
       <div class="page-header">

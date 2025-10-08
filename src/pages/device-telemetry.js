@@ -13,7 +13,7 @@ export async function renderDeviceTelemetry(params) {
 
   const { data: device, error: deviceError } = await supabase
     .from('devices')
-    .select('*, projects (project_name, project_type)')
+    .select('*, projects (project_name, project_type, ml_enabled)')
     .eq('device_id', deviceId)
     .maybeSingle();
 
@@ -73,11 +73,17 @@ async function renderWaterPumpTelemetry(device) {
     .order('ts_utc', { ascending: false })
     .limit(20);
 
-  const { data: mlModels } = await supabase
-    .from('ml_models')
-    .select('*')
-    .eq('device_id', device.device_id)
-    .order('created_at', { ascending: false });
+  const mlEnabled = device.projects?.ml_enabled || false;
+
+  let mlModels = [];
+  if (mlEnabled) {
+    const { data } = await supabase
+      .from('ml_models')
+      .select('*')
+      .eq('device_id', device.device_id)
+      .order('created_at', { ascending: false });
+    mlModels = data || [];
+  }
 
   const latestSample = samples && samples.length > 0 ? samples[0] : null;
 
@@ -176,53 +182,55 @@ async function renderWaterPumpTelemetry(device) {
         `}
       </div>
 
-      <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-          <h2 class="card-title" style="margin: 0;">ML Models</h2>
-          <button class="btn btn-primary" onclick="trainModel('${device.device_id}')" ${!sampleCount || sampleCount < 10 ? 'disabled' : ''}>
-            Train & Generate TFLite Model
-          </button>
-        </div>
-        ${mlModels && mlModels.length > 0 ? `
-          <div class="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Created</th>
-                  <th>Filename</th>
-                  <th>Type</th>
-                  <th>Training Samples</th>
-                  <th>Size</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${mlModels.map(model => `
+      ${mlEnabled ? `
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h2 class="card-title" style="margin: 0;">ML Models</h2>
+            <button class="btn btn-primary" onclick="trainModel('${device.device_id}')" ${!sampleCount || sampleCount < 10 ? 'disabled' : ''}>
+              Train & Generate TFLite Model
+            </button>
+          </div>
+          ${mlModels && mlModels.length > 0 ? `
+            <div class="table-wrapper">
+              <table>
+                <thead>
                   <tr>
-                    <td>${formatDate(model.created_at)}</td>
-                    <td style="font-family: monospace; font-size: 0.875rem;">${model.filename}</td>
-                    <td><span class="badge badge-info">${model.model_type}</span></td>
-                    <td>${model.training_samples}</td>
-                    <td>${model.size_bytes ? (model.size_bytes / 1024).toFixed(2) + ' KB' : 'N/A'}</td>
-                    <td>
-                      <button class="btn btn-small btn-primary" onclick="downloadModel(${model.id}, '${model.filename}')">Download</button>
-                      <button class="btn btn-small btn-danger" onclick="deleteModel(${model.id})">Delete</button>
-                    </td>
+                    <th>Created</th>
+                    <th>Filename</th>
+                    <th>Type</th>
+                    <th>Training Samples</th>
+                    <th>Size</th>
+                    <th>Actions</th>
                   </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        ` : `
-          <div class="empty-state">
-            <div class="empty-state-icon">🤖</div>
-            <p>No trained models available</p>
-            <p style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">
-              ${sampleCount < 10 ? `Need at least 10 telemetry samples to train (currently ${sampleCount || 0})` : 'Click "Train & Generate TFLite Model" to create your first model'}
-            </p>
-          </div>
-        `}
-      </div>
+                </thead>
+                <tbody>
+                  ${mlModels.map(model => `
+                    <tr>
+                      <td>${formatDate(model.created_at)}</td>
+                      <td style="font-family: monospace; font-size: 0.875rem;">${model.filename}</td>
+                      <td><span class="badge badge-info">${model.model_type}</span></td>
+                      <td>${model.training_samples}</td>
+                      <td>${model.size_bytes ? (model.size_bytes / 1024).toFixed(2) + ' KB' : 'N/A'}</td>
+                      <td>
+                        <button class="btn btn-small btn-primary" onclick="downloadModel(${model.id}, '${model.filename}')">Download</button>
+                        <button class="btn btn-small btn-danger" onclick="deleteModel(${model.id})">Delete</button>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : `
+            <div class="empty-state">
+              <div class="empty-state-icon">🤖</div>
+              <p>No trained models available</p>
+              <p style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">
+                ${sampleCount < 10 ? `Need at least 10 telemetry samples to train (currently ${sampleCount || 0})` : 'Click "Train & Generate TFLite Model" to create your first model'}
+              </p>
+            </div>
+          `}
+        </div>
+      ` : ''}
 
       <div class="actions">
         <button class="btn btn-secondary" onclick="window.router.navigate('/project?id=${device.project_id}')">Back to Project</button>
@@ -243,11 +251,17 @@ async function renderSmartLightTelemetry(device) {
     .order('ts_utc', { ascending: false })
     .limit(20);
 
-  const { data: mlModels } = await supabase
-    .from('ml_models')
-    .select('*')
-    .eq('device_id', device.device_id)
-    .order('created_at', { ascending: false });
+  const mlEnabled = device.projects?.ml_enabled || false;
+
+  let mlModels = [];
+  if (mlEnabled) {
+    const { data } = await supabase
+      .from('ml_models')
+      .select('*')
+      .eq('device_id', device.device_id)
+      .order('created_at', { ascending: false });
+    mlModels = data || [];
+  }
 
   const latestSample = samples && samples.length > 0 ? samples[0] : null;
 
@@ -340,53 +354,55 @@ async function renderSmartLightTelemetry(device) {
         `}
       </div>
 
-      <div class="card">
-        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
-          <h2 class="card-title" style="margin: 0;">ML Models</h2>
-          <button class="btn btn-primary" onclick="trainModel('${device.device_id}')" ${!sampleCount || sampleCount < 10 ? 'disabled' : ''}>
-            Train & Generate TFLite Model
-          </button>
-        </div>
-        ${mlModels && mlModels.length > 0 ? `
-          <div class="table-wrapper">
-            <table>
-              <thead>
-                <tr>
-                  <th>Created</th>
-                  <th>Filename</th>
-                  <th>Type</th>
-                  <th>Training Samples</th>
-                  <th>Size</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                ${mlModels.map(model => `
+      ${mlEnabled ? `
+        <div class="card">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem;">
+            <h2 class="card-title" style="margin: 0;">ML Models</h2>
+            <button class="btn btn-primary" onclick="trainModel('${device.device_id}')" ${!sampleCount || sampleCount < 10 ? 'disabled' : ''}>
+              Train & Generate TFLite Model
+            </button>
+          </div>
+          ${mlModels && mlModels.length > 0 ? `
+            <div class="table-wrapper">
+              <table>
+                <thead>
                   <tr>
-                    <td>${formatDate(model.created_at)}</td>
-                    <td style="font-family: monospace; font-size: 0.875rem;">${model.filename}</td>
-                    <td><span class="badge badge-info">${model.model_type}</span></td>
-                    <td>${model.training_samples}</td>
-                    <td>${model.size_bytes ? (model.size_bytes / 1024).toFixed(2) + ' KB' : 'N/A'}</td>
-                    <td>
-                      <button class="btn btn-small btn-primary" onclick="downloadModel(${model.id}, '${model.filename}')">Download</button>
-                      <button class="btn btn-small btn-danger" onclick="deleteModel(${model.id})">Delete</button>
-                    </td>
+                    <th>Created</th>
+                    <th>Filename</th>
+                    <th>Type</th>
+                    <th>Training Samples</th>
+                    <th>Size</th>
+                    <th>Actions</th>
                   </tr>
-                `).join('')}
-              </tbody>
-            </table>
-          </div>
-        ` : `
-          <div class="empty-state">
-            <div class="empty-state-icon">🤖</div>
-            <p>No trained models available</p>
-            <p style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">
-              ${sampleCount < 10 ? `Need at least 10 telemetry samples to train (currently ${sampleCount || 0})` : 'Click "Train & Generate TFLite Model" to create your first model'}
-            </p>
-          </div>
-        `}
-      </div>
+                </thead>
+                <tbody>
+                  ${mlModels.map(model => `
+                    <tr>
+                      <td>${formatDate(model.created_at)}</td>
+                      <td style="font-family: monospace; font-size: 0.875rem;">${model.filename}</td>
+                      <td><span class="badge badge-info">${model.model_type}</span></td>
+                      <td>${model.training_samples}</td>
+                      <td>${model.size_bytes ? (model.size_bytes / 1024).toFixed(2) + ' KB' : 'N/A'}</td>
+                      <td>
+                        <button class="btn btn-small btn-primary" onclick="downloadModel(${model.id}, '${model.filename}')">Download</button>
+                        <button class="btn btn-small btn-danger" onclick="deleteModel(${model.id})">Delete</button>
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          ` : `
+            <div class="empty-state">
+              <div class="empty-state-icon">🤖</div>
+              <p>No trained models available</p>
+              <p style="margin-top: 0.5rem; font-size: 0.875rem; color: var(--text-secondary);">
+                ${sampleCount < 10 ? `Need at least 10 telemetry samples to train (currently ${sampleCount || 0})` : 'Click "Train & Generate TFLite Model" to create your first model'}
+              </p>
+            </div>
+          `}
+        </div>
+      ` : ''}
 
       <div class="actions">
         <button class="btn btn-secondary" onclick="window.router.navigate('/project?id=${device.project_id}')">Back to Project</button>

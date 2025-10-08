@@ -47,11 +47,16 @@ export async function renderProjectList() {
             </div>
             <div class="form-group">
               <label class="form-label" for="project_type">Project Type</label>
-              <select id="project_type" class="form-select" required>
+              <select id="project_type" class="form-select" required onchange="toggleCustomProjectType()">
                 <option value="">Select type</option>
                 <option value="water_pump">Water Pump</option>
                 <option value="smart_light">Smart Light</option>
+                <option value="custom">Custom / New Type</option>
               </select>
+            </div>
+            <div id="custom_type_field" class="form-group" style="display: none;">
+              <label class="form-label" for="custom_project_type">Custom Type Name</label>
+              <input type="text" id="custom_project_type" class="form-input" placeholder="e.g., temperature_sensor">
             </div>
             <div class="form-group">
               <div class="checkbox-wrapper">
@@ -88,10 +93,15 @@ export async function renderProjectList() {
             </div>
             <div class="form-group">
               <label class="form-label" for="edit_project_type">Project Type</label>
-              <select id="edit_project_type" class="form-select" required>
+              <select id="edit_project_type" class="form-select" required onchange="toggleCustomProjectTypeEdit()">
                 <option value="water_pump">Water Pump</option>
                 <option value="smart_light">Smart Light</option>
+                <option value="custom">Custom / New Type</option>
               </select>
+            </div>
+            <div id="edit_custom_type_field" class="form-group" style="display: none;">
+              <label class="form-label" for="edit_custom_project_type">Custom Type Name</label>
+              <input type="text" id="edit_custom_project_type" class="form-input" placeholder="e.g., temperature_sensor">
             </div>
             <div class="form-group">
               <div class="checkbox-wrapper">
@@ -307,6 +317,36 @@ window.removeCustomField = function(fieldId) {
   document.getElementById(fieldId).remove();
 };
 
+window.toggleCustomProjectType = function() {
+  const projectType = document.getElementById('project_type').value;
+  const customField = document.getElementById('custom_type_field');
+  const customInput = document.getElementById('custom_project_type');
+
+  if (projectType === 'custom') {
+    customField.style.display = 'block';
+    customInput.required = true;
+  } else {
+    customField.style.display = 'none';
+    customInput.required = false;
+    customInput.value = '';
+  }
+};
+
+window.toggleCustomProjectTypeEdit = function() {
+  const projectType = document.getElementById('edit_project_type').value;
+  const customField = document.getElementById('edit_custom_type_field');
+  const customInput = document.getElementById('edit_custom_project_type');
+
+  if (projectType === 'custom') {
+    customField.style.display = 'block';
+    customInput.required = true;
+  } else {
+    customField.style.display = 'none';
+    customInput.required = false;
+    customInput.value = '';
+  }
+};
+
 function getCustomFieldsFromForm(containerId) {
   const container = document.getElementById(containerId);
   const fieldItems = container.querySelectorAll('.custom-field-item');
@@ -364,7 +404,17 @@ window.editProject = async function(projectId) {
 
   document.getElementById('edit_project_id').value = project.project_id;
   document.getElementById('edit_project_name').value = project.project_name;
-  document.getElementById('edit_project_type').value = project.project_type;
+
+  const knownTypes = ['water_pump', 'smart_light'];
+  if (knownTypes.includes(project.project_type)) {
+    document.getElementById('edit_project_type').value = project.project_type;
+  } else {
+    document.getElementById('edit_project_type').value = 'custom';
+    document.getElementById('edit_custom_project_type').value = project.project_type;
+    document.getElementById('edit_custom_type_field').style.display = 'block';
+    document.getElementById('edit_custom_project_type').required = true;
+  }
+
   document.getElementById('edit_ml_enabled').checked = project.ml_enabled || false;
 
   const container = document.getElementById('edit-custom-fields-container');
@@ -440,9 +490,18 @@ window.addEventListener('DOMContentLoaded', () => {
 
       const projectId = document.getElementById('project_id').value;
       const projectName = document.getElementById('project_name').value;
-      const projectType = document.getElementById('project_type').value;
+      let projectType = document.getElementById('project_type').value;
       const mlEnabled = document.getElementById('ml_enabled').checked;
       const customFields = getCustomFieldsFromForm('custom-fields-container');
+
+      if (projectType === 'custom') {
+        const customType = document.getElementById('custom_project_type').value;
+        if (!customType) {
+          showNotification('Please enter a custom project type name', 'error');
+          return;
+        }
+        projectType = customType;
+      }
 
       const { error } = await supabase
         .from('projects')
@@ -478,9 +537,18 @@ window.addEventListener('DOMContentLoaded', () => {
 
       const projectId = document.getElementById('edit_project_id').value;
       const projectName = document.getElementById('edit_project_name').value;
-      const projectType = document.getElementById('edit_project_type').value;
+      let projectType = document.getElementById('edit_project_type').value;
       const mlEnabled = document.getElementById('edit_ml_enabled').checked;
       const customFields = getCustomFieldsFromForm('edit-custom-fields-container');
+
+      if (projectType === 'custom') {
+        const customType = document.getElementById('edit_custom_project_type').value;
+        if (!customType) {
+          showNotification('Please enter a custom project type name', 'error');
+          return;
+        }
+        projectType = customType;
+      }
 
       const { error } = await supabase
         .from('projects')
