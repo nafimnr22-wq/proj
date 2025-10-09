@@ -20,12 +20,24 @@ export async function renderProjectTelemetry(projectId) {
     .select('*')
     .eq('project_id', projectId);
 
-  const { data: telemetryData, count: totalCount } = await supabase
-    .from('wp_samples')
-    .select('*', { count: 'exact' })
-    .eq('project_id', projectId)
-    .order('ts_utc', { ascending: false })
-    .limit(100);
+  const isWaterPump = project.project_type === 'water_pump';
+  const isSmartLight = project.project_type === 'smart_light';
+  const tableName = isWaterPump ? 'wp_samples' : isSmartLight ? 'sl_samples' : null;
+
+  let telemetryData = [];
+  let totalCount = 0;
+
+  if (tableName) {
+    const { data, count } = await supabase
+      .from(tableName)
+      .select('*', { count: 'exact' })
+      .eq('project_id', projectId)
+      .order('ts_utc', { ascending: false })
+      .limit(100);
+
+    telemetryData = data || [];
+    totalCount = count || 0;
+  }
 
   app.innerHTML = `
     <div class="navbar">
@@ -42,31 +54,35 @@ export async function renderProjectTelemetry(projectId) {
 
     <div class="container">
       <div class="actions" style="margin-bottom: 1.5rem;">
-        <button class="btn btn-secondary" onclick="window.router.navigate('/project/water-pump?id=${projectId}')">← Back to Project</button>
-        <div style="display: flex; gap: 0.5rem;">
-          <button class="btn btn-primary" onclick="downloadTelemetry()">Download All</button>
-          <button class="btn btn-success" onclick="document.getElementById('uploadFile').click()">Upload Telemetry</button>
-          <button class="btn btn-warning" onclick="trainModel()">Train Model</button>
-        </div>
-        <input type="file" id="uploadFile" accept=".json,.csv" style="display: none;" onchange="uploadTelemetry(event)" />
+        <button class="btn btn-secondary" onclick="window.router.navigate('/project?id=${projectId}')">← Back to Project</button>
+        ${tableName ? `
+          <div style="display: flex; gap: 0.5rem;">
+            <button class="btn btn-primary" onclick="downloadTelemetry()">Download All</button>
+            <button class="btn btn-success" onclick="document.getElementById('uploadFile').click()">Upload Telemetry</button>
+            ${project.ml_enabled ? `<button class="btn btn-warning" onclick="trainModel()">Train Model</button>` : ''}
+          </div>
+          <input type="file" id="uploadFile" accept=".json,.csv" style="display: none;" onchange="uploadTelemetry(event)" />
+        ` : ''}
       </div>
 
       <div class="page-header">
         <h1 class="page-title">${project.project_name} - Telemetry</h1>
         <p class="page-description">
           <span class="badge badge-info">${totalCount || 0} total samples</span>
-          Showing most recent 100 samples
+          ${totalCount > 0 ? 'Showing most recent 100 samples' : ''}
         </p>
       </div>
 
       <div class="card">
-        <div style="margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center;">
-          <label style="font-weight: 500;">Filter by Device:</label>
-          <select id="deviceFilter" onchange="filterTelemetry()" class="form-input" style="max-width: 300px;">
-            <option value="">All Devices</option>
-            ${devices?.map(d => `<option value="${d.device_id}">${d.device_id}</option>`).join('') || ''}
-          </select>
-        </div>
+        ${devices && devices.length > 0 ? `
+          <div style="margin-bottom: 1rem; display: flex; gap: 1rem; align-items: center;">
+            <label style="font-weight: 500;">Filter by Device:</label>
+            <select id="deviceFilter" onchange="filterTelemetry()" class="form-input" style="max-width: 300px;">
+              <option value="">All Devices</option>
+              ${devices.map(d => `<option value="${d.device_id}">${d.device_id}</option>`).join('')}
+            </select>
+          </div>
+        ` : ''}
 
         ${telemetryData && telemetryData.length > 0 ? `
           <div class="table-wrapper">
@@ -75,11 +91,17 @@ export async function renderProjectTelemetry(projectId) {
                 <tr>
                   <th>Timestamp</th>
                   <th>Device ID</th>
-                  <th>Level %</th>
-                  <th>Pump Status</th>
-                  <th>Flow Out (L/min)</th>
-                  <th>Flow In (L/min)</th>
-                  <th>Net Flow (L/min)</th>
+                  ${isWaterPump ? `
+                    <th>Level %</th>
+                    <th>Pump Status</th>
+                    <th>Flow Out (L/min)</th>
+                    <th>Flow In (L/min)</th>
+                    <th>Net Flow (L/min)</th>
+                  ` : isSmartLight ? `
+                    <th>Brightness (%)</th>
+                    <th>Power (W)</th>
+                    <th>Color Temp (K)</th>
+                  ` : ''}
                 </tr>
               </thead>
               <tbody>
@@ -87,11 +109,17 @@ export async function renderProjectTelemetry(projectId) {
                   <tr data-device="${sample.device_id}">
                     <td style="font-family: monospace; font-size: 0.85rem;">${formatDate(sample.ts_utc)}</td>
                     <td style="font-family: monospace;">${sample.device_id}</td>
-                    <td>${sample.level_pct ? Number(sample.level_pct).toFixed(1) + '%' : 'N/A'}</td>
-                    <td><span class="badge ${sample.pump_on ? 'badge-success' : 'badge-secondary'}">${sample.pump_on ? 'ON' : 'OFF'}</span></td>
-                    <td>${sample.flow_out_lpm ? Number(sample.flow_out_lpm).toFixed(2) : 'N/A'}</td>
-                    <td>${sample.flow_in_lpm ? Number(sample.flow_in_lpm).toFixed(2) : 'N/A'}</td>
-                    <td>${sample.net_flow_lpm ? Number(sample.net_flow_lpm).toFixed(2) : 'N/A'}</td>
+                    ${isWaterPump ? `
+                      <td>${sample.level_pct ? Number(sample.level_pct).toFixed(1) + '%' : 'N/A'}</td>
+                      <td><span class="badge ${sample.pump_on ? 'badge-success' : 'badge-secondary'}">${sample.pump_on ? 'ON' : 'OFF'}</span></td>
+                      <td>${sample.flow_out_lpm ? Number(sample.flow_out_lpm).toFixed(2) : 'N/A'}</td>
+                      <td>${sample.flow_in_lpm ? Number(sample.flow_in_lpm).toFixed(2) : 'N/A'}</td>
+                      <td>${sample.net_flow_lpm ? Number(sample.net_flow_lpm).toFixed(2) : 'N/A'}</td>
+                    ` : isSmartLight ? `
+                      <td>${sample.brightness || 0}%</td>
+                      <td>${sample.power_w ? Number(sample.power_w).toFixed(2) : 'N/A'}W</td>
+                      <td>${sample.color_temp || 0}K</td>
+                    ` : ''}
                   </tr>
                 `).join('')}
               </tbody>
@@ -107,11 +135,15 @@ export async function renderProjectTelemetry(projectId) {
     </div>
   `;
 
+  window.currentProjectType = project.project_type;
+  window.currentProjectId = projectId;
   window.updateActiveNav('projects');
 }
 
 window.filterTelemetry = function() {
-  const filterValue = document.getElementById('deviceFilter').value;
+  const filterValue = document.getElementById('deviceFilter')?.value;
+  if (!filterValue) return;
+
   const rows = document.querySelectorAll('#telemetryTable tbody tr');
 
   rows.forEach(row => {
@@ -124,11 +156,19 @@ window.filterTelemetry = function() {
 };
 
 window.downloadTelemetry = async function() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const projectId = urlParams.get('id');
+  const projectId = window.currentProjectId;
+  const projectType = window.currentProjectType;
+
+  const tableName = projectType === 'water_pump' ? 'wp_samples' :
+                    projectType === 'smart_light' ? 'sl_samples' : null;
+
+  if (!tableName) {
+    showNotification('Telemetry download not supported for this project type', 'error');
+    return;
+  }
 
   const { data, error } = await supabase
-    .from('wp_samples')
+    .from(tableName)
     .select('*')
     .eq('project_id', projectId)
     .order('ts_utc', { ascending: false });
@@ -153,8 +193,16 @@ window.uploadTelemetry = async function(event) {
   const file = event.target.files[0];
   if (!file) return;
 
-  const urlParams = new URLSearchParams(window.location.search);
-  const projectId = urlParams.get('id');
+  const projectId = window.currentProjectId;
+  const projectType = window.currentProjectType;
+
+  const tableName = projectType === 'water_pump' ? 'wp_samples' :
+                    projectType === 'smart_light' ? 'sl_samples' : null;
+
+  if (!tableName) {
+    showNotification('Telemetry upload not supported for this project type', 'error');
+    return;
+  }
 
   try {
     const text = await file.text();
@@ -184,15 +232,22 @@ window.uploadTelemetry = async function(event) {
 
     data.forEach(item => {
       if (!item.project_id) item.project_id = projectId;
-      if (item.level_pct) item.level_pct = Number(item.level_pct);
-      if (item.flow_out_lpm) item.flow_out_lpm = Number(item.flow_out_lpm);
-      if (item.flow_in_lpm) item.flow_in_lpm = Number(item.flow_in_lpm);
-      if (item.net_flow_lpm) item.net_flow_lpm = Number(item.net_flow_lpm);
-      if (item.pump_on !== undefined) item.pump_on = item.pump_on === 'true' || item.pump_on === true;
+
+      if (projectType === 'water_pump') {
+        if (item.level_pct) item.level_pct = Number(item.level_pct);
+        if (item.flow_out_lpm) item.flow_out_lpm = Number(item.flow_out_lpm);
+        if (item.flow_in_lpm) item.flow_in_lpm = Number(item.flow_in_lpm);
+        if (item.net_flow_lpm) item.net_flow_lpm = Number(item.net_flow_lpm);
+        if (item.pump_on !== undefined) item.pump_on = item.pump_on === 'true' || item.pump_on === true;
+      } else if (projectType === 'smart_light') {
+        if (item.brightness) item.brightness = Number(item.brightness);
+        if (item.power_w) item.power_w = Number(item.power_w);
+        if (item.color_temp) item.color_temp = Number(item.color_temp);
+      }
     });
 
     const { error } = await supabase
-      .from('wp_samples')
+      .from(tableName)
       .insert(data);
 
     if (error) {
@@ -210,8 +265,7 @@ window.uploadTelemetry = async function(event) {
 };
 
 window.trainModel = async function() {
-  const urlParams = new URLSearchParams(window.location.search);
-  const projectId = urlParams.get('id');
+  const projectId = window.currentProjectId;
 
   if (!confirm('Train a new ML model using all telemetry data? This may take a few moments.')) {
     return;
