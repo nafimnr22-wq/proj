@@ -47,16 +47,10 @@ export async function renderProjectList() {
             </div>
             <div class="form-group">
               <label class="form-label" for="project_type">Project Type</label>
-              <select id="project_type" class="form-select" required onchange="toggleCustomProjectType()">
-                <option value="">Select type</option>
-                <option value="water_pump">Water Pump</option>
-                <option value="smart_light">Smart Light</option>
-                <option value="custom">Custom / New Type</option>
-              </select>
-            </div>
-            <div id="custom_type_field" class="form-group" style="display: none;">
-              <label class="form-label" for="custom_project_type">Custom Type Name</label>
-              <input type="text" id="custom_project_type" class="form-input" placeholder="e.g., temperature_sensor">
+              <input type="text" id="project_type" class="form-input" placeholder="e.g., water_pump, smart_light" required>
+              <small style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.25rem; display: block;">
+                Use lowercase with underscores (e.g., water_pump, smart_light, temperature_sensor)
+              </small>
             </div>
             <div class="form-group">
               <div class="checkbox-wrapper">
@@ -67,10 +61,22 @@ export async function renderProjectList() {
 
             <div class="form-group">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <label class="form-label" style="margin: 0;">Custom Fields</label>
+                <label class="form-label" style="margin: 0;">Custom Fields (for Devices)</label>
                 <button type="button" class="btn btn-secondary" onclick="addCustomField()">Add Field</button>
               </div>
               <div id="custom-fields-container" style="display: flex; flex-direction: column; gap: 1rem;">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <label class="form-label" style="margin: 0;">Realtime Data Fields</label>
+                <button type="button" class="btn btn-secondary" onclick="addRealtimeField()">Add Field</button>
+              </div>
+              <small style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.75rem; display: block;">
+                Realtime data can be edited from ESP32 devices and the dashboard
+              </small>
+              <div id="realtime-fields-container" style="display: flex; flex-direction: column; gap: 1rem;">
               </div>
             </div>
 
@@ -93,15 +99,10 @@ export async function renderProjectList() {
             </div>
             <div class="form-group">
               <label class="form-label" for="edit_project_type">Project Type</label>
-              <select id="edit_project_type" class="form-select" required onchange="toggleCustomProjectTypeEdit()">
-                <option value="water_pump">Water Pump</option>
-                <option value="smart_light">Smart Light</option>
-                <option value="custom">Custom / New Type</option>
-              </select>
-            </div>
-            <div id="edit_custom_type_field" class="form-group" style="display: none;">
-              <label class="form-label" for="edit_custom_project_type">Custom Type Name</label>
-              <input type="text" id="edit_custom_project_type" class="form-input" placeholder="e.g., temperature_sensor">
+              <input type="text" id="edit_project_type" class="form-input" required>
+              <small style="color: var(--text-secondary); font-size: 0.875rem; margin-top: 0.25rem; display: block;">
+                Use lowercase with underscores (e.g., water_pump, smart_light, temperature_sensor)
+              </small>
             </div>
             <div class="form-group">
               <div class="checkbox-wrapper">
@@ -112,10 +113,22 @@ export async function renderProjectList() {
 
             <div class="form-group">
               <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-                <label class="form-label" style="margin: 0;">Custom Fields</label>
+                <label class="form-label" style="margin: 0;">Custom Fields (for Devices)</label>
                 <button type="button" class="btn btn-secondary" onclick="addCustomFieldEdit()">Add Field</button>
               </div>
               <div id="edit-custom-fields-container" style="display: flex; flex-direction: column; gap: 1rem;">
+              </div>
+            </div>
+
+            <div class="form-group">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <label class="form-label" style="margin: 0;">Realtime Data Fields</label>
+                <button type="button" class="btn btn-secondary" onclick="addRealtimeFieldEdit()">Add Field</button>
+              </div>
+              <small style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.75rem; display: block;">
+                Realtime data can be edited from ESP32 devices and the dashboard
+              </small>
+              <div id="edit-realtime-fields-container" style="display: flex; flex-direction: column; gap: 1rem;">
               </div>
             </div>
 
@@ -317,34 +330,84 @@ window.removeCustomField = function(fieldId) {
   document.getElementById(fieldId).remove();
 };
 
-window.toggleCustomProjectType = function() {
-  const projectType = document.getElementById('project_type').value;
-  const customField = document.getElementById('custom_type_field');
-  const customInput = document.getElementById('custom_project_type');
+let realtimeFieldCounter = 0;
 
-  if (projectType === 'custom') {
-    customField.style.display = 'block';
-    customInput.required = true;
-  } else {
-    customField.style.display = 'none';
-    customInput.required = false;
-    customInput.value = '';
-  }
+window.addRealtimeField = function() {
+  const container = document.getElementById('realtime-fields-container');
+  const fieldId = `rt-field-${realtimeFieldCounter++}`;
+
+  const fieldHtml = `
+    <div class="custom-field-item" id="${fieldId}" style="border: 1px solid var(--border); padding: 1rem; border-radius: 8px; background: var(--bg-secondary);">
+      <div style="display: flex; gap: 1rem; margin-bottom: 0.75rem;">
+        <div style="flex: 1;">
+          <label class="form-label">Field Label</label>
+          <input type="text" class="form-input rt-field-label" placeholder="e.g., Temperature" required>
+        </div>
+        <div style="flex: 1;">
+          <label class="form-label">Field Name</label>
+          <input type="text" class="form-input rt-field-name" placeholder="e.g., temperature" required>
+        </div>
+      </div>
+      <div style="display: flex; gap: 1rem; margin-bottom: 0.75rem;">
+        <div style="flex: 1;">
+          <label class="form-label">Field Type</label>
+          <select class="form-select rt-field-type">
+            <option value="text">Text</option>
+            <option value="number">Number</option>
+            <option value="checkbox">Checkbox</option>
+          </select>
+        </div>
+        <div style="flex: 1;">
+          <label class="form-label">Default Value</label>
+          <input type="text" class="form-input rt-field-default" placeholder="Optional">
+        </div>
+      </div>
+      <button type="button" class="btn btn-danger btn-small" onclick="removeRealtimeField('${fieldId}')">Remove Field</button>
+    </div>
+  `;
+
+  container.insertAdjacentHTML('beforeend', fieldHtml);
 };
 
-window.toggleCustomProjectTypeEdit = function() {
-  const projectType = document.getElementById('edit_project_type').value;
-  const customField = document.getElementById('edit_custom_type_field');
-  const customInput = document.getElementById('edit_custom_project_type');
+window.addRealtimeFieldEdit = function() {
+  const container = document.getElementById('edit-realtime-fields-container');
+  const fieldId = `edit-rt-field-${realtimeFieldCounter++}`;
 
-  if (projectType === 'custom') {
-    customField.style.display = 'block';
-    customInput.required = true;
-  } else {
-    customField.style.display = 'none';
-    customInput.required = false;
-    customInput.value = '';
-  }
+  const fieldHtml = `
+    <div class="custom-field-item" id="${fieldId}" style="border: 1px solid var(--border); padding: 1rem; border-radius: 8px; background: var(--bg-secondary);">
+      <div style="display: flex; gap: 1rem; margin-bottom: 0.75rem;">
+        <div style="flex: 1;">
+          <label class="form-label">Field Label</label>
+          <input type="text" class="form-input rt-field-label" placeholder="e.g., Temperature" required>
+        </div>
+        <div style="flex: 1;">
+          <label class="form-label">Field Name</label>
+          <input type="text" class="form-input rt-field-name" placeholder="e.g., temperature" required>
+        </div>
+      </div>
+      <div style="display: flex; gap: 1rem; margin-bottom: 0.75rem;">
+        <div style="flex: 1;">
+          <label class="form-label">Field Type</label>
+          <select class="form-select rt-field-type">
+            <option value="text">Text</option>
+            <option value="number">Number</option>
+            <option value="checkbox">Checkbox</option>
+          </select>
+        </div>
+        <div style="flex: 1;">
+          <label class="form-label">Default Value</label>
+          <input type="text" class="form-input rt-field-default" placeholder="Optional">
+        </div>
+      </div>
+      <button type="button" class="btn btn-danger btn-small" onclick="removeRealtimeField('${fieldId}')">Remove Field</button>
+    </div>
+  `;
+
+  container.insertAdjacentHTML('beforeend', fieldHtml);
+};
+
+window.removeRealtimeField = function(fieldId) {
+  document.getElementById(fieldId).remove();
 };
 
 function getCustomFieldsFromForm(containerId) {
@@ -353,16 +416,44 @@ function getCustomFieldsFromForm(containerId) {
   const fields = [];
 
   fieldItems.forEach(item => {
-    const label = item.querySelector('.field-label').value;
-    const name = item.querySelector('.field-name').value;
+    const label = item.querySelector('.field-label')?.value;
+    const name = item.querySelector('.field-name')?.value;
+
+    if (!label || !name) return;
+
     const type = item.querySelector('.field-type').value;
-    const required = item.querySelector('.field-required').checked;
-    const optionsInput = item.querySelector('.field-options').value;
+    const required = item.querySelector('.field-required')?.checked || false;
+    const optionsInput = item.querySelector('.field-options')?.value;
 
     const field = { name, label, type, required };
 
     if (type === 'select' && optionsInput) {
       field.options = optionsInput.split(',').map(opt => opt.trim()).filter(opt => opt);
+    }
+
+    fields.push(field);
+  });
+
+  return fields;
+}
+
+function getRealtimeFieldsFromForm(containerId) {
+  const container = document.getElementById(containerId);
+  const fieldItems = container.querySelectorAll('.custom-field-item');
+  const fields = [];
+
+  fieldItems.forEach(item => {
+    const label = item.querySelector('.rt-field-label')?.value;
+    const name = item.querySelector('.rt-field-name')?.value;
+
+    if (!label || !name) return;
+
+    const type = item.querySelector('.rt-field-type').value;
+    const defaultValue = item.querySelector('.rt-field-default')?.value || '';
+
+    const field = { name, label, type };
+    if (defaultValue) {
+      field.default = defaultValue;
     }
 
     fields.push(field);
@@ -404,17 +495,7 @@ window.editProject = async function(projectId) {
 
   document.getElementById('edit_project_id').value = project.project_id;
   document.getElementById('edit_project_name').value = project.project_name;
-
-  const knownTypes = ['water_pump', 'smart_light'];
-  if (knownTypes.includes(project.project_type)) {
-    document.getElementById('edit_project_type').value = project.project_type;
-  } else {
-    document.getElementById('edit_project_type').value = 'custom';
-    document.getElementById('edit_custom_project_type').value = project.project_type;
-    document.getElementById('edit_custom_type_field').style.display = 'block';
-    document.getElementById('edit_custom_project_type').required = true;
-  }
-
+  document.getElementById('edit_project_type').value = project.project_type;
   document.getElementById('edit_ml_enabled').checked = project.ml_enabled || false;
 
   const container = document.getElementById('edit-custom-fields-container');
@@ -462,11 +543,50 @@ window.editProject = async function(projectId) {
     container.insertAdjacentHTML('beforeend', fieldHtml);
   });
 
+  const rtContainer = document.getElementById('edit-realtime-fields-container');
+  rtContainer.innerHTML = '';
+
+  const realtimeFields = project.realtime_fields || [];
+  realtimeFields.forEach(field => {
+    const fieldId = `edit-rt-field-${realtimeFieldCounter++}`;
+    const fieldHtml = `
+      <div class="custom-field-item" id="${fieldId}" style="border: 1px solid var(--border); padding: 1rem; border-radius: 8px; background: var(--bg-secondary);">
+        <div style="display: flex; gap: 1rem; margin-bottom: 0.75rem;">
+          <div style="flex: 1;">
+            <label class="form-label">Field Label</label>
+            <input type="text" class="form-input rt-field-label" value="${field.label}" required>
+          </div>
+          <div style="flex: 1;">
+            <label class="form-label">Field Name</label>
+            <input type="text" class="form-input rt-field-name" value="${field.name}" required>
+          </div>
+        </div>
+        <div style="display: flex; gap: 1rem; margin-bottom: 0.75rem;">
+          <div style="flex: 1;">
+            <label class="form-label">Field Type</label>
+            <select class="form-select rt-field-type">
+              <option value="text" ${field.type === 'text' ? 'selected' : ''}>Text</option>
+              <option value="number" ${field.type === 'number' ? 'selected' : ''}>Number</option>
+              <option value="checkbox" ${field.type === 'checkbox' ? 'selected' : ''}>Checkbox</option>
+            </select>
+          </div>
+          <div style="flex: 1;">
+            <label class="form-label">Default Value</label>
+            <input type="text" class="form-input rt-field-default" value="${field.default || ''}" placeholder="Optional">
+          </div>
+        </div>
+        <button type="button" class="btn btn-danger btn-small" onclick="removeRealtimeField('${fieldId}')">Remove Field</button>
+      </div>
+    `;
+    rtContainer.insertAdjacentHTML('beforeend', fieldHtml);
+  });
+
   document.getElementById('edit-project-modal').style.display = 'flex';
 };
 
 window.showCreateProjectModal = function() {
   document.getElementById('custom-fields-container').innerHTML = '';
+  document.getElementById('realtime-fields-container').innerHTML = '';
   document.getElementById('create-project-modal').style.display = 'flex';
 };
 
@@ -474,12 +594,14 @@ window.hideCreateProjectModal = function() {
   document.getElementById('create-project-modal').style.display = 'none';
   document.getElementById('create-project-form').reset();
   document.getElementById('custom-fields-container').innerHTML = '';
+  document.getElementById('realtime-fields-container').innerHTML = '';
 };
 
 window.hideEditProjectModal = function() {
   document.getElementById('edit-project-modal').style.display = 'none';
   document.getElementById('edit-project-form').reset();
   document.getElementById('edit-custom-fields-container').innerHTML = '';
+  document.getElementById('edit-realtime-fields-container').innerHTML = '';
 };
 
 window.addEventListener('DOMContentLoaded', () => {
@@ -490,18 +612,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
       const projectId = document.getElementById('project_id').value;
       const projectName = document.getElementById('project_name').value;
-      let projectType = document.getElementById('project_type').value;
+      const projectType = document.getElementById('project_type').value;
       const mlEnabled = document.getElementById('ml_enabled').checked;
       const customFields = getCustomFieldsFromForm('custom-fields-container');
-
-      if (projectType === 'custom') {
-        const customType = document.getElementById('custom_project_type').value;
-        if (!customType) {
-          showNotification('Please enter a custom project type name', 'error');
-          return;
-        }
-        projectType = customType;
-      }
+      const realtimeFields = getRealtimeFieldsFromForm('realtime-fields-container');
 
       const { error } = await supabase
         .from('projects')
@@ -511,6 +625,7 @@ window.addEventListener('DOMContentLoaded', () => {
           project_type: projectType,
           ml_enabled: mlEnabled,
           custom_fields: customFields,
+          realtime_fields: realtimeFields,
         });
 
       if (error) {
@@ -537,18 +652,10 @@ window.addEventListener('DOMContentLoaded', () => {
 
       const projectId = document.getElementById('edit_project_id').value;
       const projectName = document.getElementById('edit_project_name').value;
-      let projectType = document.getElementById('edit_project_type').value;
+      const projectType = document.getElementById('edit_project_type').value;
       const mlEnabled = document.getElementById('edit_ml_enabled').checked;
       const customFields = getCustomFieldsFromForm('edit-custom-fields-container');
-
-      if (projectType === 'custom') {
-        const customType = document.getElementById('edit_custom_project_type').value;
-        if (!customType) {
-          showNotification('Please enter a custom project type name', 'error');
-          return;
-        }
-        projectType = customType;
-      }
+      const realtimeFields = getRealtimeFieldsFromForm('edit-realtime-fields-container');
 
       const { error } = await supabase
         .from('projects')
@@ -557,6 +664,7 @@ window.addEventListener('DOMContentLoaded', () => {
           project_type: projectType,
           ml_enabled: mlEnabled,
           custom_fields: customFields,
+          realtime_fields: realtimeFields,
         })
         .eq('project_id', projectId);
 

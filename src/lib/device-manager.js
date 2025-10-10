@@ -44,9 +44,12 @@ export function renderDeviceTable(project, devices) {
                   return `<td>${value}</td>`;
                 }).join('')}
                 <td>
-                  <button class="btn btn-small btn-secondary" onclick="window.router.navigate('/device/telemetry?id=${device.device_id}')">View</button>
-                  <button class="btn btn-small btn-primary" onclick="openEditDeviceModal('${device.device_id}', '${project.project_id}')">Edit</button>
-                  <button class="btn btn-small btn-danger" onclick="deleteDevice('${device.device_id}', '${project.project_id}')">Delete</button>
+                  <div class="actions">
+                    <button class="btn btn-small btn-info" onclick="window.router.navigate('/device/realtime?id=${device.device_id}')">Realtime</button>
+                    <button class="btn btn-small btn-secondary" onclick="window.router.navigate('/device/telemetry?id=${device.device_id}')">View</button>
+                    <button class="btn btn-small btn-primary" onclick="openEditDeviceModal('${device.device_id}', '${project.project_id}')">Edit</button>
+                    <button class="btn btn-small btn-danger" onclick="deleteDevice('${device.device_id}', '${project.project_id}')">Delete</button>
+                  </div>
                 </td>
               </tr>
             `;

@@ -86,6 +86,7 @@ async function loadDeviceList() {
               <td>${formatDate(device.updated_at)}</td>
               <td>
                 <div class="actions">
+                  <button class="btn btn-small btn-info" onclick="window.router.navigate('/device/realtime?id=${device.device_id}')">Realtime</button>
                   <button class="btn btn-small btn-primary" onclick="window.router.navigate('/device/telemetry?id=${device.device_id}')">View</button>
                   <button class="btn btn-small btn-secondary" onclick="window.router.navigate('/project?id=${device.project_id}')">Go to Project</button>
                 </div>
